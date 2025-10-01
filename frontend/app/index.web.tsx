@@ -1,5 +1,5 @@
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -29,8 +29,6 @@ interface AnalysisResult {
 
 type VerificationStep = 'url' | 'analysis' | 'tier' | 'payment';
 
-type SectionKey = 'why' | 'protection' | 'how' | 'trusted';
-
 const tiers = [
   {
     id: 'lite',
@@ -57,13 +55,6 @@ const tierDescriptions: Record<string, string> = {
   lite: 'Remote AI and scout review for instant red-flag checks.',
   standard: 'In-person verification with photos, video, and delivery coordination.',
   plus: 'Priority concierge, negotiation support, and live updates.'
-};
-
-const sectionLayerOrder: Record<SectionKey, number> = {
-  why: 4,
-  protection: 3,
-  how: 2,
-  trusted: 1
 };
 
 const trustHighlights = [
@@ -227,13 +218,6 @@ export default function WebIndex() {
   const scrollRef = useRef<ScrollView | null>(null);
   const howItWorksY = useRef(0);
   const protectionY = useRef(0);
-  const [sections, setSections] = useState<Record<SectionKey, number>>({
-    why: 0,
-    protection: 0,
-    how: 0,
-    trusted: 0
-  });
-  const scrollY = useRef(new Animated.Value(0)).current;
   const [chatVisible, setChatVisible] = useState(false);
   const [showVerify, setShowVerify] = useState(false);
   const [showStickyNav, setShowStickyNav] = useState(false);
@@ -274,72 +258,11 @@ export default function WebIndex() {
     };
   }, [lockDrift, shieldDrift]);
 
-  useEffect(() => {
-    const listenerId = scrollY.addListener(({ value }) => {
-      const threshold = heroHeight > 0 ? heroHeight - 80 : 140;
-      setShowStickyNav(value >= threshold);
-    });
-
-    return () => {
-      scrollY.removeListener(listenerId);
-    };
-  }, [heroHeight, scrollY]);
-
-  const handleScroll = Animated.event(
-  [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-  { 
-    useNativeDriver: false, // CRITICAL for web - must be false for layout animations
-    listener: (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      // You can add any additional logic here if needed
-    }
-  }
-);
-
-const getOverlapStyle = useCallback((key: SectionKey, isFirst = false) => {
-  const offset = sections[key];
-  const baseMargin = isFirst ? 0 : -150;
-
-  if (!offset || offset === 0) {
-    return {
-      marginTop: baseMargin,
-      zIndex: sectionLayerOrder[key],
-      position: 'relative' as const
-    };
-  }
-
-  const animationDistance = 400;
-
-  const translateY = scrollY.interpolate({
-    inputRange: [
-      offset - animationDistance,
-      offset - animationDistance / 2,
-      offset,
-      offset + 200
-    ],
-    outputRange: isFirst ? [0, 0, 0, 0] : [150, 60, 0, -100],
-    extrapolate: 'clamp'
-  });
-
-  const scale = scrollY.interpolate({
-    inputRange: [offset - animationDistance, offset - 100, offset, offset + 200],
-    outputRange: [0.92, 0.97, 1, 0.97],
-    extrapolate: 'clamp'
-  });
-
-  const opacity = scrollY.interpolate({
-    inputRange: [offset - animationDistance, offset - 150, offset],
-    outputRange: [0.5, 0.9, 1],
-    extrapolate: 'clamp'
-  });
-
-  return {
-    marginTop: baseMargin,
-    zIndex: sectionLayerOrder[key],
-    position: 'relative' as const,
-    transform: [{ translateY }, { scale }],
-    opacity
-  };
-}, [sections, scrollY]); 
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const scrollY = event.nativeEvent.contentOffset.y;
+    const threshold = heroHeight > 0 ? heroHeight - 80 : 140;
+    setShowStickyNav(scrollY >= threshold);
+  }; 
 
   if (token) {
     router.replace('/(tabs)/jobs');
@@ -384,7 +307,6 @@ const getOverlapStyle = useCallback((key: SectionKey, isFirst = false) => {
         ref={scrollRef}
         contentContainerStyle={styles.webContent}
         onScroll={handleScroll}
-        scrollEventThrottle={16}
       >
         <View style={styles.heroSection} onLayout={({ nativeEvent }) => setHeroHeight(nativeEvent.layout.height)}>
           <Animated.View
@@ -513,12 +435,7 @@ const getOverlapStyle = useCallback((key: SectionKey, isFirst = false) => {
           </View>
         </View>
 
-        <Animated.View
-          style={[styles.sectionCard, getOverlapStyle('why', true)]}
-          onLayout={({ nativeEvent }) => {
-            setSections(prev => ({ ...prev, why: nativeEvent.layout.y }));
-          }}
-        >
+        <View style={styles.sectionCard}>
           <Text style={styles.sectionHeading}>Why buyers love SafeScout</Text>
           <View style={styles.gridThree}>
             {trustHighlights.map(({ icon, title, copy }) => (
@@ -529,13 +446,12 @@ const getOverlapStyle = useCallback((key: SectionKey, isFirst = false) => {
               </View>
             ))}
           </View>
-        </Animated.View>
+        </View>
 
-        <Animated.View
-          style={[styles.sectionCard, styles.sectionMuted, styles.protectionSection, getOverlapStyle('protection')]}
+        <View
+          style={[styles.sectionCard, styles.sectionMuted, styles.protectionSection]}
           onLayout={({ nativeEvent }) => {
             protectionY.current = nativeEvent.layout.y;
-            setSections(prev => ({ ...prev, protection: nativeEvent.layout.y }));
           }}
         >
           <Text style={[styles.sectionHeading, styles.sectionHeadingLight]}>Choose your protection level</Text>
@@ -567,13 +483,12 @@ const getOverlapStyle = useCallback((key: SectionKey, isFirst = false) => {
               </View>
             ))}
           </View>
-        </Animated.View>
+        </View>
 
-        <Animated.View
-          style={[styles.sectionCard, getOverlapStyle('how')]}
+        <View
+          style={styles.sectionCard}
           onLayout={({ nativeEvent }) => {
             howItWorksY.current = nativeEvent.layout.y;
-            setSections(prev => ({ ...prev, how: nativeEvent.layout.y }));
           }}
         >
           <Text style={styles.sectionHeading}>How SafeScout works</Text>
@@ -593,14 +508,9 @@ const getOverlapStyle = useCallback((key: SectionKey, isFirst = false) => {
               </View>
             ))}
           </View>
-        </Animated.View>
+        </View>
 
-        <Animated.View
-          style={[styles.sectionCard, styles.sectionMuted, getOverlapStyle('trusted')]}
-          onLayout={({ nativeEvent }) => {
-            setSections(prev => ({ ...prev, trusted: nativeEvent.layout.y }));
-          }}
-        >
+        <View style={[styles.sectionCard, styles.sectionMuted]}>
           <Text style={[styles.sectionHeading, styles.sectionHeadingLight]}>Trusted by 10,000+ buyers</Text>
           <View style={styles.gridThree}>
             {testimonials.map(({ quote, name }) => (
@@ -615,7 +525,7 @@ const getOverlapStyle = useCallback((key: SectionKey, isFirst = false) => {
               </View>
             ))}
           </View>
-        </Animated.View>
+        </View>
 
         {showVerify ? <VerifyFlow onReset={() => setShowVerify(false)} /> : null}
 
@@ -919,8 +829,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
     shadowRadius: 24,
-    elevation: 8,
-    willChange: 'transform, opacity'
+    elevation: 8
   },
   sectionMuted: {
     backgroundColor: '#13294B',
