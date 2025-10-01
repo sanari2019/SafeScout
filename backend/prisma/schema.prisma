@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  BUYER
+  SCOUT
+  ADMIN
+}
+
+enum JobStatus {
+  CREATED
+  SCOUT_ASSIGNED
+  IN_PROGRESS
+  VERIFIED
+  COMPLETED
+  CANCELLED
+}
+
+enum JobTier {
+  LITE
+  STANDARD
+  PLUS
+}
+
+enum Marketplace {
+  FACEBOOK
+  EBAY
+  GUMTREE
+  OTHER
+}
+
+enum RiskRecommendation {
+  LOW_RISK
+  MEDIUM_RISK
+  HIGH_RISK
+}
+
+enum ConditionGrade {
+  A_PLUS
+  A
+  B
+  C
+  D
+}
+
+enum VerificationRecommendation {
+  BUY
+  NEGOTIATE
+  REJECT
+}
+
+enum PaymentStatus {
+  PENDING
+  HELD
+  RELEASED
+  REFUNDED
+}
+
+model User {
+  id              String   @id @default(uuid())
+  email           String   @unique
+  passwordHash    String
+  role            Role     @default(BUYER)
+  stripeCustomerId String? @unique
+  stripeAccountId String?  @unique
+  rating          Float?   @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  jobsAsBuyer Job[] @relation("BuyerJobs")
+  jobsAsScout Job[] @relation("ScoutJobs")
+}
+
+model Job {
+  id             String     @id @default(uuid())
+  buyerId        String
+  scoutId        String?
+  status         JobStatus  @default(CREATED)
+  tier           JobTier
+  listingUrl     String
+  marketplace    Marketplace
+  itemTitle      String
+  itemPrice      Decimal    @db.Decimal(10, 2)
+  itemPhotos     String[]
+  description    String?
+
+  riskScore          Int?
+  riskSignals        String[]
+  riskRecommendation RiskRecommendation?
+  riskExplanation    String?
+
+  scoutFee   Decimal @db.Decimal(10, 2)
+  totalFee   Decimal @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  buyer User @relation("BuyerJobs", fields: [buyerId], references: [id])
+  scout User? @relation("ScoutJobs", fields: [scoutId], references: [id])
+  report VerificationReport?
+  payment Payment?
+}
+
+model VerificationReport {
+  id             String                     @id @default(uuid())
+  jobId          String                     @unique
+  photos         String[]
+  videoUrl       String?
+  conditionGrade ConditionGrade
+  defects        String[]
+  recommendation VerificationRecommendation
+  reportContent  String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  job Job @relation(fields: [jobId], references: [id])
+}
+
+model Payment {
+  id                   String        @id @default(uuid())
+  jobId                String        @unique
+  stripePaymentIntentId String       @unique
+  status               PaymentStatus @default(PENDING)
+  buyerAmount          Decimal       @db.Decimal(10, 2)
+  scoutPayout          Decimal       @db.Decimal(10, 2)
+  platformFee          Decimal       @db.Decimal(10, 2)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  job Job @relation(fields: [jobId], references: [id])
+}

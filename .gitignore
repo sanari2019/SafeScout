@@ -1,0 +1,42 @@
+# Node
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# TypeScript
+**/dist/
+*.tsbuildinfo
+
+# Env files
+.env
+.env.*
+backend/.env
+frontend/.env
+
+# Expo
+.expo/
+.expo-shared/
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Prisma
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+
+# Docker
+**/.dockerignore
+.expo/
